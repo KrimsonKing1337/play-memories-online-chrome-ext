@@ -1,176 +1,203 @@
-let links = {};
+class Inject {
+  static getItemId(element) {
+    return element.getAttribute('data-itemid');
+  }
 
-function closeDetailedView() {
-  const e = new MouseEvent('tap', {
-    'view': window,
-    'bubbles': true,
-    'cancelable': true
-  });
-
-  document.querySelector('#singleview-close').dispatchEvent(e);
-}
-
-function doClick(parent, index) {
-  const elem = parent.querySelectorAll('[data-itemid]')[index];
-  const container = elem.closest('.day-thumb-container');
-  const e = new MouseEvent('tap', {
-    'view': window,
-    'bubbles': true,
-    'cancelable': true
-  });
-
-  Object.defineProperty(e, 'target', {value: elem, enumerable: true});
-
-  container.dispatchEvent(e);
-}
-
-function doClickForLoadRest(elem) {
-  const e = new MouseEvent('tap', {
-    'view': window,
-    'bubbles': true,
-    'cancelable': true
-  });
-
-  elem.dispatchEvent(e);
-}
-
-function getItemId(elem) {
-  return elem.getAttribute('data-itemid');
-}
-
-function waitUntilLoaded(parent, index) {
-  return new Promise((resolve) => {
-    let interval = setInterval(() => {
-      let elem = parent.querySelectorAll('[data-itemid]')[index];
-
-      if (getItemId(elem)) {
-        clearInterval(interval);
+  static sleep(n) {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        clearTimeout(timer);
 
         resolve();
-      }
-    }, 300);
-  });
-}
+      }, n);
+    });
+  }
 
-function sleep(n) {
-  return new Promise((resolve) => {
-    let timer = setTimeout(() => {
-      clearTimeout(timer);
+  static scrollToElement(element) {
+    const top = element.offsetTop;
+    const height = element.offsetHeight;
+    const y = top + height;
 
-      resolve();
-    }, n);
-  });
-}
+    window.scrollTo(0, y);
+  }
 
-function setLinks(links) {
-  const slideshowElem = document.querySelector('#slideshow');
-  const imageElems = slideshowElem.querySelectorAll('div');
+  static closeDetailedView() {
+    const e = new MouseEvent('tap', {
+      'view': window,
+      'bubbles': true,
+      'cancelable': true
+    });
 
-  for (let i = 0; i < imageElems.length; i++) {
-    const imageElemCur = imageElems[i];
-    const title = document.querySelector('#photo-title').getAttribute('title');
-    const cssMatrixAsArray = imageElemCur.style.transform
-      .replace('matrix3d(', '')
-      .replace(')', '')
-      .split(', ');
+    document.querySelector('#singleview-close').dispatchEvent(e);
+  }
 
-    // take only the one which visible at the center of the screen;
-    if (cssMatrixAsArray.some((cur => cur > 1))) {
-      continue;
-    }
+  static waitUntilLoaded(parent, index) {
+    return new Promise((resolve) => {
+      const interval = setInterval(() => {
+        const element = parent.querySelectorAll('[data-itemid]')[index];
 
-    let bg = imageElemCur.style.backgroundImage;
+        if (Inject.getItemId(element)) {
+          clearInterval(interval);
+
+          resolve();
+        }
+      }, 300);
+    });
+  }
+
+  static doClick(parent, index) {
+    const element = parent.querySelectorAll('[data-itemid]')[index];
+    const container = element.closest('.day-thumb-container');
+    const e = new MouseEvent('tap', {
+      'view': window,
+      'bubbles': true,
+      'cancelable': true
+    });
+
+    Object.defineProperty(e, 'target', {value: element, enumerable: true});
+
+    container.dispatchEvent(e);
+  }
+
+  static doClickForLoadRest(element) {
+    const e = new MouseEvent('tap', {
+      'view': window,
+      'bubbles': true,
+      'cancelable': true
+    });
+
+    element.dispatchEvent(e);
+  }
+
+  static getUrl(element) {
+    let bg = element.style.backgroundImage;
 
     bg = bg.replace('url', '');
     bg = bg.replace(/"/g, '');
 
     const re = /\(([^)]+)\)/;
 
-    links[title] = bg.match(re).pop();
+    return bg.match(re).pop();
   }
-}
 
-function scrollToElem(elem) {
-  const top = elem.offsetTop;
-  const height = elem.offsetHeight;
-  const y = top + height;
+  // take only the one which visible at the center of the screen;
+  static isVisible(element) {
+    const cssMatrixAsArray = element.style.transform
+      .replace('matrix3d(', '')
+      .replace(')', '')
+      .split(', ');
 
-  window.scrollTo(0, y);
-}
-
-async function proceedChildren(parent, links) {
-  let all = parent.querySelectorAll('[data-itemid]');
-
-  for (let i = 0; i < all.length; i++) {
-    let elemCur = parent.querySelectorAll('[data-itemid]')[i];
-
-    scrollToElem(elemCur);
-
-    if (!getItemId(elemCur)) {
-      console.log('waiting until loaded, id is: ', i);
-
-      await waitUntilLoaded(parent, i);
-
-      elemCur = parent.querySelectorAll('[data-itemid]')[i];
-    }
-
-    if (elemCur.classList.contains('day-has-overlay')) {
-      const overlay = elemCur.querySelector('.day-thumb-overlay');
-
-      doClickForLoadRest(overlay);
-
-      await sleep(3000); //todo: поменять на XHTTPRequest как в яндекс музыке было сделано
-
-      all = parent.querySelectorAll('[data-itemid]');
-    }
-
-    doClick(parent, i);
-
-    await sleep(500);
-
-    setLinks(links);
-    closeDetailedView();
-
-    await sleep(500);
+    return cssMatrixAsArray.every((cur) => cur === '0' && cur === '1');
   }
-}
 
-async function start() {
-  let dayItemsAll = document.querySelectorAll('.day-items');
-  let dayItem;
+  static getMonth(parent) {
+    return parent.closest('.month-group').getAttribute('id');
+  }
 
-  for (let i = 0; i < dayItemsAll.length; i++) {
-    const dayItemCur = dayItemsAll[i];
+  static getPhotoTitle() {
+    return document.querySelector('#photo-title').getAttribute('title');
+  }
 
-    if (dayItemCur.classList.contains('done') === false) {
-      dayItem = dayItemCur;
+  static getFirstDayItemWhichIsNotDone() {
+    const dayItemsAll = document.querySelectorAll('.day-items');
 
-      break;
+    for (let i = 0; i < dayItemsAll.length; i++) {
+      const dayItemCur = dayItemsAll[i];
+
+      if (dayItemCur.classList.contains('done') === false) {
+        return dayItemCur;
+      }
     }
   }
 
-  const label = dayItem.closest('.month-group').getAttribute('id');
-
-  if (!links[label]) {
-    links[label] = {};
+  constructor() {
+    this.links = {};
+    this.segment = null;
+    this.parent = null;
   }
 
-  scrollToElem(dayItem);
+  setSegment() {
+    const slideshowElem = document.querySelector('#slideshow');
+    const imageElements = slideshowElem.querySelectorAll('div');
 
-  await proceedChildren(dayItem, links[label]);
+    for (let i = 0; i < imageElements.length; i++) {
+      const imageElementCur = imageElements[i];
+      const title = Inject.getPhotoTitle();
 
-  dayItem.classList.add('done');
+      if (Inject.isVisible(imageElementCur)) {
+        this.segment[title] = Inject.getUrl(imageElementCur);
 
-  // if ((window.innerHeight + window.scrollY) < document.body.scrollHeight) {
-  if (Object.keys(links).length <= 2) {
-    return await start();
-  } else {
-    return links;
+        break;
+      }
+    }
+  }
+
+  async proceedChildren() {
+    let elements = this.parent.querySelectorAll('[data-itemid]');
+
+    for (let i = 0; i < elements.length; i++) {
+      let elemCur = this.parent.querySelectorAll('[data-itemid]')[i];
+
+      Inject.scrollToElement(elemCur);
+
+      if (!getItemId(elemCur)) {
+        console.log('waiting until loaded, id is: ', i);
+
+        await Inject.waitUntilLoaded(this.parent, i);
+
+        elemCur = this.parent.querySelectorAll('[data-itemid]')[i];
+      }
+
+      if (elemCur.classList.contains('day-has-overlay')) {
+        const overlay = elemCur.querySelector('.day-thumb-overlay');
+
+        Inject.doClickForLoadRest(overlay);
+
+        await sleep(3000); //todo: поменять на XHTTPRequest как в яндекс музыке было сделано
+
+        elements = this.parent.querySelectorAll('[data-itemid]');
+      }
+
+      Inject.doClick(this.parent, i);
+
+      await Inject.sleep(500);
+
+      this.setSegment();
+      Inject.closeDetailedView();
+
+      await Inject.sleep(500);
+    }
+  }
+
+  async getLinks() {
+    this.parent = Inject.getFirstDayItemWhichIsNotDone();
+    const label = Inject.getMonth(this.parent);
+
+    if (!this.links[label]) {
+      this.links[label] = {};
+    }
+
+    this.segment = this.links[label];
+
+    Inject.scrollToElement(this.parent);
+
+    await this.proceedChildren();
+
+    this.parent.classList.add('done');
+
+    // if ((window.innerHeight + window.scrollY) < document.body.scrollHeight) {
+    if (Object.keys(this.links).length <= 2) {
+      return await this.getLinks();
+    } else {
+      return this.links;
+    }
   }
 }
+
+const injectInst = new Inject();
 
 document.addEventListener('PMOEXT_START', async () => {
-  const links = await start();
+  const links = await injectInst.getLinks();
   const evt = new CustomEvent('PMOPAGE_END', { detail: links });
 
   document.dispatchEvent(evt);
