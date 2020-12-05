@@ -31,7 +31,7 @@ class Inject {
     document.querySelector('#singleview-close').dispatchEvent(e);
   }
 
-  static waitUntilLoaded(parent, index) {
+  static waitUntilLoadedOld(parent, index) {
     return new Promise((resolve) => {
       const interval = setInterval(() => {
         const element = parent.querySelectorAll('[data-itemid]')[index];
@@ -110,10 +110,58 @@ class Inject {
     }
   }
 
+  static removeXHTTPRequestEventListener() {
+    XMLHttpRequest.prototype.send = XMLHttpRequest.prototype.realSend;
+  }
+
+  static addXHTTPRequestEventListener() {
+    function onSuccessHandler(e) {
+      if (e.target.responseURL.indexOf('/items?') !== -1) {
+        this.itemsIsLoading = true;
+      }
+
+      this.loading = false;
+    }
+
+    function onErrorHandler() {
+      this.itemsIsLoading = false;
+      this.loading = false;
+    }
+
+    XMLHttpRequest.prototype.realSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function (value) {
+      this.loading = true;
+      this.itemsIsLoading = false;
+
+      this.addEventListener('load', onSuccessHandler, false);
+      this.addEventListener('error', onErrorHandler, false);
+      this.addEventListener('abort', onErrorHandler, false);
+      this.realSend(value);
+    };
+  }
+
   constructor() {
     this.links = {};
     this.segment = null;
     this.parent = null;
+    this.loading = false;
+    this.itemsIsLoading = false;
+  }
+
+  async waitUntilLoaded() {
+    if (this.loading === false) {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+      const interval = setInterval(() => {
+        if (this.loading === false) {
+          clearInterval(interval);
+
+          resolve(this.itemsIsLoading);
+        }
+      }, 50);
+    });
   }
 
   setSegment() {
@@ -140,10 +188,10 @@ class Inject {
 
       Inject.scrollToElement(elemCur);
 
-      if (!getItemId(elemCur)) {
-        console.log('waiting until loaded, id is: ', i);
+      if (!Inject.getItemId(elemCur)) {
+        console.warn('waiting until loaded, id is: ', i);
 
-        await Inject.waitUntilLoaded(this.parent, i);
+        await this.waitUntilLoaded();
 
         elemCur = this.parent.querySelectorAll('[data-itemid]')[i];
       }
@@ -153,7 +201,7 @@ class Inject {
 
         Inject.doClickForLoadRest(overlay);
 
-        await sleep(3000); //todo: поменять на XHTTPRequest как в яндекс музыке было сделано
+        await this.waitUntilLoaded();
 
         elements = this.parent.querySelectorAll('[data-itemid]');
       }
@@ -185,8 +233,8 @@ class Inject {
 
     this.parent.classList.add('done');
 
-    // if ((window.innerHeight + window.scrollY) < document.body.scrollHeight) {
-    if (Object.keys(this.links).length <= 2) {
+    if ((window.innerHeight + window.scrollY) < document.body.scrollHeight) {
+    // if (Object.keys(this.links).length <= 2) {
       return await this.getLinks();
     } else {
       return this.links;
@@ -197,8 +245,12 @@ class Inject {
 const injectInst = new Inject();
 
 document.addEventListener('PMOEXT_START', async () => {
+  Inject.addXHTTPRequestEventListener();
+
   const links = await injectInst.getLinks();
   const evt = new CustomEvent('PMOPAGE_END', { detail: links });
 
   document.dispatchEvent(evt);
+
+  Inject.removeXHTTPRequestEventListener();
 });
