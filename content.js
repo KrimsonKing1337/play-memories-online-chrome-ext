@@ -28,6 +28,8 @@ chrome.runtime.onMessage.addListener((request, sender) => {
 document.addEventListener('PMOPAGE_DOWNLOAD', async (e) => {
   const links = e.detail;
 
+  console.log('content get PMOPAGE_DOWNLOAD');
+
   chrome.runtime.sendMessage({from: 'PMOPAGE', command: 'download', links});
 });
 

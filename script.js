@@ -1,3 +1,13 @@
+function sleep(n) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      clearTimeout(timer);
+
+      resolve();
+    }, n);
+  });
+}
+
 function getDate(file) {
   const withoutPrefix = file.substring(file.indexOf('_') + 1);
   const dateFull = withoutPrefix.substring(0, withoutPrefix.indexOf('_'));
@@ -13,18 +23,85 @@ function getDate(file) {
   }
 }
 
-// todo: handle download errors
-function download(links) {
-  Object.keys(links).forEach((folder) => {
-    Object.keys(links[folder]).forEach((file) => {
-      const { day, month, year } = getDate(file);
-
-      chrome.downloads.download({
-        url: links[folder][file],
-        filename: `PMO/${year}/${month}/${day}/${file}`
-      });
+async function downloadPause(downloadId) {
+  return new Promise((resolve) => {
+    chrome.downloads.pause(downloadId, () => {
+      resolve();
     });
   });
+}
+
+async function downloadResume(downloadId) {
+  return new Promise((resolve) => {
+    chrome.downloads.resume(downloadId, () => {
+      resolve();
+    });
+  });
+}
+
+async function downloadSearch(downloadId) {
+  return new Promise((resolve) => {
+    chrome.downloads.search({id: downloadId}, (downloadItems) => {
+      resolve(downloadItems[0]);
+    });
+  });
+}
+
+function onDownloadComplete(downloadId) {
+  return new Promise(resolve => {
+    chrome.downloads.onChanged.addListener(function onChanged({id, state}) {
+      if (id === downloadId && state && state.current !== 'in_progress') {
+        chrome.downloads.onChanged.removeListener(onChanged);
+
+        resolve(state.current === 'complete');
+      }
+    });
+  });
+}
+
+function download(url, filename) {
+  return new Promise((resolve, reject) => {
+    chrome.downloads.download({
+      url,
+      filename,
+    }, async (downloadId) => {
+      console.log('downloadId', downloadId);
+
+      if (downloadId === undefined) {
+        reject(downloadId);
+
+        return;
+      }
+
+      const downloadComplete = await onDownloadComplete(downloadId);
+
+      if (!downloadComplete) {
+        await downloadResume(downloadId);
+      }
+
+      resolve();
+    });
+  });
+}
+
+async function downloadAll(links) {
+  const folders = Object.keys(links);
+
+  for (let i = 0; i < folders.length; i++) {
+    const folderCur = folders[i];
+
+    const files = Object.keys(links[folderCur]);
+
+    for (let j = 0; j < files.length; j++) {
+      const fileCur = files[j];
+
+      const { day, month, year } = getDate(fileCur);
+      const url = links[folderCur][fileCur];
+      const filename = `PMO/${year}/${month}/${day}/${fileCur}`;
+
+      await download(url, filename);
+    }
+  }
 }
 
 document.querySelector('.button').addEventListener('click', () => {
@@ -39,8 +116,10 @@ chrome.runtime.onMessage.addListener((request, sender) => {
   }
 
   if (request.command === 'download') {
+    console.log('script get command download');
+
     const { links } = request;
 
-    download(links);
+    downloadAll(links);
   }
 });
