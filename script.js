@@ -99,7 +99,7 @@ async function downloadAll(links) {
       const url = links[folderCur][fileCur];
       const filename = `PMO/${year}/${month}/${day}/${fileCur}`;
 
-      await download(url, filename);
+      download(url, filename);
     }
   }
 }
