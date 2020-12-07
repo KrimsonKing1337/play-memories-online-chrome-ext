@@ -23,6 +23,10 @@ chrome.runtime.onMessage.addListener((request, sender) => {
   if (request.command === 'start') {
     triggerEvent('PMOEXT_START');
   }
+
+  if (request.command === 'pause') {
+    triggerEvent('PMOEXT_PAUSE');
+  }
 });
 
 document.addEventListener('PMOPAGE_DOWNLOAD', async (e) => {

@@ -8,13 +8,11 @@ function sleep(n) {
   });
 }
 
-function getDate(file) {
-  const withoutPrefix = file.substring(file.indexOf('_') + 1);
-  const dateFull = withoutPrefix.substring(0, withoutPrefix.indexOf('_'));
-  const date = dateFull.substring(4);
-  const day = date.substring(2);
-  const month = date.substring(0, 2);
-  const year = dateFull.substring(0, 4);
+function getDate(date) {
+  const dateWithoutSeparator = date.replace(/\//g, '');
+  const day = dateWithoutSeparator.substring(0, 2);
+  const month = dateWithoutSeparator.substring(2, 4);
+  const year = dateWithoutSeparator.substring(4, 8);
 
   return {
     day,
@@ -65,7 +63,7 @@ function download(url, filename) {
       url,
       filename,
     }, async (downloadId) => {
-      console.log('downloadId', downloadId);
+      console.log(url, filename);
 
       if (downloadId === undefined) {
         reject(downloadId);
@@ -94,9 +92,8 @@ async function downloadAll(links) {
 
     for (let j = 0; j < files.length; j++) {
       const fileCur = files[j];
-
-      const { day, month, year } = getDate(fileCur);
-      const url = links[folderCur][fileCur];
+      const { date, url } = links[folderCur][fileCur];
+      const { day, month, year } = getDate(date);
       const filename = `PMO/${year}/${month}/${day}/${fileCur}`;
 
       download(url, filename);
@@ -104,9 +101,15 @@ async function downloadAll(links) {
   }
 }
 
-document.querySelector('.button').addEventListener('click', () => {
+document.querySelector('#button-start').addEventListener('click', () => {
   chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
     chrome.tabs.sendMessage(tabs[0].id, {from: 'PMOEXT', command: 'start'});
+  });
+}, false);
+
+document.querySelector('#button-pause').addEventListener('click', () => {
+  chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+    chrome.tabs.sendMessage(tabs[0].id, {from: 'PMOEXT', command: 'pause'});
   });
 }, false);
 

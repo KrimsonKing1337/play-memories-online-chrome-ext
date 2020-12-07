@@ -80,6 +80,8 @@ class Inject {
   }
 
   static getImageStaticUrlById(id) {
+    // disp: attachment,IMG-20190720-WA0002.jpg
+
     return `https://ws.playmemoriesonline.com/api/3.0/items/${id}/source?redirect=true&ok=_ok_32a`;
   }
 
@@ -163,11 +165,39 @@ class Inject {
     document.dispatchEvent(evt);
   }
 
+  static async getUrl(imageElement) {
+    if (Inject.checkIfVideo(imageElement)) {
+      Inject.doClick(imageElement);
+
+      await Inject.sleep(500);
+
+      const video = Inject.getVideo();
+
+      video.pause();
+
+      return video.src;
+    }
+
+    return Inject.getImageUrl(imageElement);
+  }
+
+  static getDate() {
+    const textContent = document.querySelector('#photo-date').textContent;
+    const separateIndex = textContent.indexOf(' ');
+
+    return textContent.substring(0, separateIndex);
+  }
+
   constructor() {
     this.links = {};
     this.segment = null;
     this.parent = null;
     this.loading = false;
+    this.pause = false;
+  }
+
+  togglePause() {
+    this.pause = !this.pause;
   }
 
   async waitUntilLoaded() {
@@ -186,22 +216,6 @@ class Inject {
     });
   }
 
-  async getUrl(imageElementCur) {
-    if (Inject.checkIfVideo(imageElementCur)) {
-      Inject.doClick(imageElementCur);
-
-      await Inject.sleep(500);
-
-      const video = Inject.getVideo();
-
-      video.pause();
-
-      return video.src;
-    }
-
-    return Inject.getImageUrl(imageElementCur);
-  }
-
   async setSegment() {
     const slideshowElem = document.querySelector('#slideshow');
     const imageElements = slideshowElem.querySelectorAll('div');
@@ -211,7 +225,13 @@ class Inject {
       const title = Inject.getPhotoTitle();
 
       if (Inject.isVisible(imageElementCur)) {
-        this.segment[title] = await this.getUrl(imageElementCur);
+        const url = await Inject.getUrl(imageElementCur);
+        const date = Inject.getDate();
+
+        this.segment[title] = {
+          url,
+          date,
+        }
 
         break;
       }
@@ -278,6 +298,8 @@ class Inject {
 
     Inject.download(this.links);
 
+    // console.log('this.links', this.links);
+
     this.links = {};
     this.segment = null;
 
@@ -295,4 +317,8 @@ document.addEventListener('PMOEXT_START', async () => {
   Inject.removeXHTTPRequestEventListener();
 
   Inject.download(links);
+});
+
+document.addEventListener('PMOEXT_PAUSE', async () => {
+  injectInst.togglePause();
 });
