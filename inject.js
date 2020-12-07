@@ -45,7 +45,7 @@ class Inject {
     });
   }
 
-  static doClick(parent, index) {
+  static doClickItem(parent, index) {
     const element = parent.querySelectorAll('[data-itemid]')[index];
     const container = element.closest('.day-thumb-container');
     const e = new MouseEvent('tap', {
@@ -59,7 +59,7 @@ class Inject {
     container.dispatchEvent(e);
   }
 
-  static doClickForLoadRest(element) {
+  static doClick(element) {
     const e = new MouseEvent('tap', {
       'view': window,
       'bubbles': true,
@@ -69,15 +69,24 @@ class Inject {
     element.dispatchEvent(e);
   }
 
-  static getUrl(element) {
-    let bg = element.style.backgroundImage;
+  static getImageId(element) {
+    const bgImage = element.style.backgroundImage;
+    const start = '&target=';
+    const startIndex = bgImage.indexOf(start);
+    const end = '%2C';
+    const endIndex = bgImage.indexOf(end);
 
-    bg = bg.replace('url', '');
-    bg = bg.replace(/"/g, '');
+    return bgImage.substring(startIndex + start.length, endIndex);
+  }
 
-    const re = /\(([^)]+)\)/;
+  static getImageStaticUrlById(id) {
+    return `https://ws.playmemoriesonline.com/api/3.0/items/${id}/source?redirect=true&ok=_ok_32a`;
+  }
 
-    return bg.match(re).pop();
+  static getImageUrl(element) {
+    const id = Inject.getImageId(element);
+
+    return Inject.getImageStaticUrlById(id);
   }
 
   // take only the one which visible at the center of the screen;
@@ -87,7 +96,7 @@ class Inject {
       .replace(')', '')
       .split(', ');
 
-    return cssMatrixAsArray.every((cur) => cur === '0' && cur === '1');
+    return cssMatrixAsArray.every((cur) => cur === '0' || cur === '1');
   }
 
   static getMonth(parent) {
@@ -114,24 +123,22 @@ class Inject {
     XMLHttpRequest.prototype.send = XMLHttpRequest.prototype.realSend;
   }
 
-  static addXHTTPRequestEventListener() {
+  static addXMLRequestEventListener() {
     function onSuccessHandler(e) {
-      if (e.target.responseURL.indexOf('/items?') !== -1) {
-        this.itemsIsLoading = true;
-      }
+      // if (e.target.responseURL.indexOf('/items?') !== -1) {}
+
+      console.log(e.target.responseURL);
 
       this.loading = false;
     }
 
     function onErrorHandler() {
-      this.itemsIsLoading = false;
       this.loading = false;
     }
 
     XMLHttpRequest.prototype.realSend = XMLHttpRequest.prototype.send;
     XMLHttpRequest.prototype.send = function (value) {
       this.loading = true;
-      this.itemsIsLoading = false;
 
       this.addEventListener('load', onSuccessHandler, false);
       this.addEventListener('error', onErrorHandler, false);
@@ -140,12 +147,27 @@ class Inject {
     };
   }
 
+  static checkIfVideo(element) {
+    return !!element.querySelector('.video-icon');
+  }
+
+  static getVideo() {
+    const videoPlayer = document.querySelector('#videoplayer');
+
+    return videoPlayer.querySelector('video');
+  }
+
+  static download(links) {
+    const evt = new CustomEvent('PMOPAGE_DOWNLOAD', { detail: links });
+
+    document.dispatchEvent(evt);
+  }
+
   constructor() {
     this.links = {};
     this.segment = null;
     this.parent = null;
     this.loading = false;
-    this.itemsIsLoading = false;
   }
 
   async waitUntilLoaded() {
@@ -158,13 +180,29 @@ class Inject {
         if (this.loading === false) {
           clearInterval(interval);
 
-          resolve(this.itemsIsLoading);
+          resolve();
         }
       }, 50);
     });
   }
 
-  setSegment() {
+  async getUrl(imageElementCur) {
+    if (Inject.checkIfVideo(imageElementCur)) {
+      Inject.doClick(imageElementCur);
+
+      await Inject.sleep(500);
+
+      const video = Inject.getVideo();
+
+      video.pause();
+
+      return video.src;
+    }
+
+    return Inject.getImageUrl(imageElementCur);
+  }
+
+  async setSegment() {
     const slideshowElem = document.querySelector('#slideshow');
     const imageElements = slideshowElem.querySelectorAll('div');
 
@@ -173,7 +211,7 @@ class Inject {
       const title = Inject.getPhotoTitle();
 
       if (Inject.isVisible(imageElementCur)) {
-        this.segment[title] = Inject.getUrl(imageElementCur);
+        this.segment[title] = await this.getUrl(imageElementCur);
 
         break;
       }
@@ -199,18 +237,18 @@ class Inject {
       if (elemCur.classList.contains('day-has-overlay')) {
         const overlay = elemCur.querySelector('.day-thumb-overlay');
 
-        Inject.doClickForLoadRest(overlay);
+        Inject.doClick(overlay);
 
         await this.waitUntilLoaded();
 
         elements = this.parent.querySelectorAll('[data-itemid]');
       }
 
-      Inject.doClick(this.parent, i);
+      Inject.doClickItem(this.parent, i);
 
       await Inject.sleep(500);
 
-      this.setSegment();
+      await this.setSegment();
       Inject.closeDetailedView();
 
       await Inject.sleep(500);
@@ -219,6 +257,11 @@ class Inject {
 
   async getLinks() {
     this.parent = Inject.getFirstDayItemWhichIsNotDone();
+
+    if (!this.parent) {
+      return this.links;
+    }
+
     const label = Inject.getMonth(this.parent);
 
     if (!this.links[label]) {
@@ -233,24 +276,23 @@ class Inject {
 
     this.parent.classList.add('done');
 
-    if ((window.innerHeight + window.scrollY) < document.body.scrollHeight) {
-    // if (Object.keys(this.links).length <= 2) {
-      return await this.getLinks();
-    } else {
-      return this.links;
-    }
+    Inject.download(this.links);
+
+    this.links = {};
+    this.segment = null;
+
+    return await this.getLinks();
   }
 }
 
 const injectInst = new Inject();
 
 document.addEventListener('PMOEXT_START', async () => {
-  Inject.addXHTTPRequestEventListener();
+  Inject.addXMLRequestEventListener();
 
   const links = await injectInst.getLinks();
-  const evt = new CustomEvent('PMOPAGE_END', { detail: links });
-
-  document.dispatchEvent(evt);
 
   Inject.removeXHTTPRequestEventListener();
+
+  Inject.download(links);
 });

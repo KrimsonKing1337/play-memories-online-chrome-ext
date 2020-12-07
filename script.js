@@ -13,6 +13,7 @@ function getDate(file) {
   }
 }
 
+// todo: handle download errors
 function download(links) {
   Object.keys(links).forEach((folder) => {
     Object.keys(links[folder]).forEach((file) => {
@@ -37,7 +38,7 @@ chrome.runtime.onMessage.addListener((request, sender) => {
     return;
   }
 
-  if (request.command === 'end') {
+  if (request.command === 'download') {
     const { links } = request;
 
     download(links);
