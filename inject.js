@@ -80,9 +80,9 @@ class Inject {
   }
 
   static getImageStaticUrlById(id) {
-    // disp: attachment,IMG-20190720-WA0002.jpg
+    const title = Inject.getPhotoTitle();
 
-    return `https://ws.playmemoriesonline.com/api/3.0/items/${id}/source?redirect=true&ok=_ok_32a`;
+    return `https://ws.playmemoriesonline.com/api/3.0/items/${id}/source?redirect=true&ok=_ok_32a&disp=attachment,${title}`;
   }
 
   static getImageUrl(element) {
@@ -196,8 +196,22 @@ class Inject {
     this.pause = false;
   }
 
+  waitForUnpause() {
+    return new Promise((resolve) => {
+      const interval = setInterval(() => {
+        if (!this.pause) {
+          clearInterval(interval);
+
+          resolve();
+        }
+      }, 50);
+    });
+  }
+
   togglePause() {
     this.pause = !this.pause;
+
+    console.log('this.pause', this.pause);
   }
 
   async waitUntilLoaded() {
@@ -242,6 +256,8 @@ class Inject {
     let elements = this.parent.querySelectorAll('[data-itemid]');
 
     for (let i = 0; i < elements.length; i++) {
+      await this.waitForUnpause();
+
       let elemCur = this.parent.querySelectorAll('[data-itemid]')[i];
 
       Inject.scrollToElement(elemCur);
@@ -276,6 +292,8 @@ class Inject {
   }
 
   async getLinks() {
+    await this.waitForUnpause();
+
     this.parent = Inject.getFirstDayItemWhichIsNotDone();
 
     if (!this.parent) {
@@ -295,6 +313,8 @@ class Inject {
     await this.proceedChildren();
 
     this.parent.classList.add('done');
+
+    await this.waitForUnpause();
 
     Inject.download(this.links);
 
