@@ -210,8 +210,6 @@ class Inject {
 
   togglePause() {
     this.pause = !this.pause;
-
-    console.log('this.pause', this.pause);
   }
 
   async waitUntilLoaded() {
@@ -318,7 +316,7 @@ class Inject {
 
     Inject.download(this.links);
 
-    // console.log('this.links', this.links);
+    console.log('this.links', this.links);
 
     this.links = {};
     this.segment = null;
