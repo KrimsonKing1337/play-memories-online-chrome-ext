@@ -1,3 +1,11 @@
+function getFileName(filename) {
+  const arr = filename.split('.');
+  const ext = arr.pop();
+  const nameWithSmallExt = `${arr.join('.')}.${ext.toLowerCase()}`;
+
+  return nameWithSmallExt.replace('jfif', 'jpg');
+}
+
 function sleep(n) {
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
@@ -58,10 +66,12 @@ function onDownloadComplete(downloadId) {
 }
 
 function download(url, filename) {
+  const fileNameWithoutJfif = getFileName(filename);
+
   return new Promise((resolve, reject) => {
     chrome.downloads.download({
       url,
-      filename,
+      filename: fileNameWithoutJfif,
     }, async (downloadId) => {
       console.log(url, filename);
 
@@ -96,7 +106,7 @@ async function downloadAll(links) {
       const { day, month, year } = getDate(date);
       const filename = `PMO/${year}/${month}/${day}/${fileCur}`;
 
-      download(url, filename);
+      await download(url, filename);
     }
   }
 }
@@ -119,8 +129,6 @@ chrome.runtime.onMessage.addListener((request, sender) => {
   }
 
   if (request.command === 'download') {
-    console.log('script get command download');
-
     const { links } = request;
 
     downloadAll(links);

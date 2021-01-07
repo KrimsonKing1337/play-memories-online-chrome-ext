@@ -81,8 +81,11 @@ class Inject {
 
   static getImageStaticUrlById(id) {
     const title = Inject.getPhotoTitle();
+    const arr = title.split('.');
+    const ext = arr.pop();
+    const titleWithSmallExt = `${arr.join('.')}.${ext.toLowerCase()}`;
 
-    return `https://ws.playmemoriesonline.com/api/3.0/items/${id}/source?redirect=true&ok=_ok_32a&disp=attachment,${title}`;
+    return `https://ws.playmemoriesonline.com/api/3.0/items/${id}/source?redirect=true&ok=_ok_32a&disp=attachment,${titleWithSmallExt}`;
   }
 
   static getImageUrl(element) {
