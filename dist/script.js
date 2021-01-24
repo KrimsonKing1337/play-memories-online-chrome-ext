@@ -3,7 +3,7 @@ function getFileName(filename) {
   const ext = arr.pop();
   const nameWithSmallExt = `${arr.join('.')}.${ext.toLowerCase()}`;
 
-  return nameWithSmallExt.replace('jfif', 'jpg'); // I don't know wft is this
+  return nameWithSmallExt.replace('jfif', 'jpg');
 }
 
 function sleep(n) {
