@@ -31,20 +31,6 @@ class Inject {
     document.querySelector('#singleview-close').dispatchEvent(e);
   }
 
-  static waitUntilLoadedOld(parent, index) {
-    return new Promise((resolve) => {
-      const interval = setInterval(() => {
-        const element = parent.querySelectorAll('[data-itemid]')[index];
-
-        if (Inject.getItemId(element)) {
-          clearInterval(interval);
-
-          resolve();
-        }
-      }, 300);
-    });
-  }
-
   static doClickItem(parent, index) {
     const element = parent.querySelectorAll('[data-itemid]')[index];
     const container = element.closest('.day-thumb-container');
